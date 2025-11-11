@@ -1,4 +1,4 @@
-This is the model that was built on the snowflake_sample_data.tpch_sf1 schema. 
+This is the dbt model that was built on the snowflake_sample_data.tpch_sf1 schema. 
 The data was splitted into 3 views to simulate 3 incremental transformations. You can find view definitions for dbt source in scripts/ddl.sql file.
 Also for date fields were added some rolling values - to pull date ranges from 1990s to 2020s.
 
