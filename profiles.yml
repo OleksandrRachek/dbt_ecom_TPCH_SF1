@@ -1,0 +1,16 @@
+dbt_ecom:
+  outputs:
+    dev:
+      type: snowflake
+      account: <paste your account number>
+      user: dbt
+
+      role: TRANSFORM
+      private_key: "<paste your key>"
+      private_key_passphrase: <yor paraphrase>
+
+      database: ECOM
+      schema: DEV
+      threads: 4
+      warehouse: COMPUTE_WH
+  target: dev
