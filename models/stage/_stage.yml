@@ -1,0 +1,238 @@
+version: 2
+
+models:
+  - name: stg_customer
+    config:
+          tags: [stg, customer]
+    description: >
+      Cleaned and standardized customer data from TPCH. Includes customer attributes
+      and links to the nation table.
+    
+    columns:
+      - name: customer_id
+        description: Unique customer identifier
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        description: Customer full name
+        tests: [not_null]
+      - name: account_balance
+        description: Customer account balance
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: -10000
+                max_value: 100000
+      - name: nation_id
+        description: Foreign key to nation
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_nation')
+                field: nation_id
+
+  - name: stg_orders
+    config:
+          tags: [stg, orders]
+    description: >
+      Order header data cleaned and linked to customers. Contains key dates and prices.
+    
+    columns:
+      - name: order_id
+        description: Unique order identifier
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Foreign key to customer
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customer')
+                field: customer_id
+      - name: order_status
+        description: Order status (O=Open, F=Filled, P=Pending)
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              arguments:
+                value_set: ['O', 'F', 'P']
+      - name: order_total_price
+        description: Total order amount
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1000000
+      - name: order_date
+        description: Order creation date
+        tests: [not_null]
+
+  - name: stg_lineitem
+    config:
+          tags: [stg, lineitem]
+    description: >
+      Line-level order details joined to orders, containing product and pricing data.
+    
+    columns:
+      - name: order_id
+        description: Foreign key to order
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: line_number
+        description: Line number within an order
+        tests: [not_null]
+      - name: part_id
+        description: Foreign key to part
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_part')
+                field: part_id
+      - name: supp_id
+        description: Foreign key to supplier
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_supplier')
+                field: supplier_id
+      - name: quantity
+        description: Quantity of the product in the line item
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 50
+      - name: discount
+        description: Discount percentage on the item
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 0.1
+      - name: ship_date
+        description: Shipping date of the order line
+        tests: [not_null]
+      - name: commit_date
+        description: Commitment date of the order line
+        tests: [not_null]
+
+  - name: stg_part
+    config:
+          tags: [stg, part]
+    description: >
+      Product master data cleaned for analytics, includes enriched pricing.
+    
+    columns:
+      - name: part_id
+        description: Unique product identifier
+        tests: [unique, not_null]
+      - name: part_name
+        description: Product name
+        tests: [not_null]
+      - name: retail_price
+        description: Retail price of the product
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments: 
+                min_value: 1
+                max_value: 10000
+      - name: part_type
+        description: Product category
+        tests: [not_null]
+
+  - name: stg_supplier
+    config:
+          tags: [stg, supplier]
+    description: >
+      Supplier master data standardized for analytics.
+    
+    columns:
+      - name: supplier_id
+        description: Unique supplier identifier
+        tests: [unique, not_null]
+      - name: supplier_name
+        description: Supplier name
+        tests: [not_null]
+      - name: account_balance
+        description: Supplier account balance
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: -10000
+                max_value: 100000
+      - name: nation_id
+        description: Foreign key to nation
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_nation')
+                field: nation_id
+
+  - name: stg_partsupp
+    config:
+          tags: [stg, partsupp]
+    description: >
+      Mapping between parts and suppliers with pricing and stock info.
+    
+    columns:
+      - name: part_id
+        description: Foreign key to part
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_part')
+                field: part_id
+      - name: supplier_id
+        description: Foreign key to supplier
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_supplier')
+                field: supplier_id
+      - name: supply_cost
+        description: Supplier cost for the part
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 10000
+
+  - name: stg_nation
+    config:
+          tags: [stg, nation]
+    description: >
+      Country-level dimension containing geographic information.
+    
+    columns:
+      - name: nation_id
+        description: Unique nation identifier
+        tests: [unique, not_null]
+      - name: nation_name
+        description: Nation name
+        tests: [not_null]
+      - name: region_id
+        description: Foreign key to region
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_region')
+                field: region_id
+
+  - name: stg_region
+    config:
+          tags: [stg, region]
+    description: >
+      Region-level dimension used to group nations.
+    
+    columns:
+      - name: region_id
+        description: Unique region identifier
+        tests: [unique, not_null]
+      - name: region_name
+        description: Name of the region
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              arguments:
+                value_set: ['AFRICA', 'AMERICA', 'ASIA', 'EUROPE', 'MIDDLE EAST']

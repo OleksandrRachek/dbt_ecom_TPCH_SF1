@@ -1,0 +1,129 @@
+version: 2
+
+models:
+  - name: int_customer_geography
+    config:
+          tags: [intermediate, customer, nation, region]
+    description: >
+      Enriches customer data with nation and region hierarchies for segmentation analysis.
+    
+    columns:
+      - name: customer_id
+        data_tests: [not_null, unique]
+      - name: customer_region
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['AMERICA', 'ASIA', 'EUROPE', 'AFRICA', 'MIDDLE EAST']
+
+  - name: int_order_lineitems
+    config:
+          tags: [intermediate, orders, lineitem]
+    description: >
+      Combines orders, line items, and parts into a unified dataset that includes calculated net revenue and item metrics.
+    columns:
+      - name: order_id
+        data_tests: [not_null]
+      - name: net_revenue
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: discount
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "BETWEEN 0 AND 1.0"
+
+  - name: int_supplier_geography
+    config:
+          tags: [intermediate, supplier, nation, region]
+    description: >
+      Adds geographic enrichment to supplier data for vendor region and performance analytics.
+    data_tests:
+      - unique:
+          column_name: supplier_id
+    columns:
+      - name: supplier_region
+        data_tests: [not_null]
+
+  - name: int_product_pricing
+    config:
+          tags: [intermediate, supplier, part, partsupp]
+    description: >
+      Combines part and supplier data to calculate available quantities, supply costs, and product margin.
+    columns:
+      - name: margin
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+              config: 
+                severity: warn
+
+  - name: int_sales_enriched
+    config:
+          tags: [intermediate, orders, customer, product, supplier]
+    description: >
+      Unified sales dataset joining customer, product, supplier, and order details with financial and geographic metrics.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 10000
+            max_value: 100000000
+    columns:
+      - name: order_id
+        data_tests: [not_null]
+      - name: gross_margin
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+              config:
+                severity: warn
+      - name: order_date
+        data_tests:
+          - not_null
+
+
+
+  - name: int_supplier_shipping_summary
+    config:
+          tags: [intermediate, lineitem, supplier]
+    description: >
+      Tracks supplier reliability metrics such as average delivery days and fulfilled orders.
+    columns:
+      - name: avg_delivery_days
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: " >= 0"
+
+  - name: int_date_spine
+    config:
+          tags: [intermediate]
+    description: >
+      A generated date dimension table used for joining time-based metrics across marts.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: int_lineitem_part_supp_join
+    config:
+          tags: [intermediate, lineitem, partsupp]
+    description: >
+      Precomputed relationship table linking order, part, and supplier for efficient joins in downstream models.
+    columns:
+      - name: supplier_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('int_supplier_geography')
+                field: supplier_id
+      - name: part_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('int_product_pricing')
+                field: part_id

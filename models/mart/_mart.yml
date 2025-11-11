@@ -1,0 +1,90 @@
+version: 2
+
+models:
+  - name: mart_customer_lifetime_value
+    description: >
+      Aggregates customer lifetime metrics including revenue, margin, order count, and segmentation.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: lifetime_revenue
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: customer_value_segment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['VIP', 'LOYAL', 'REGULAR', 'OCCASIONAL']
+
+  - name: mart_regional_performance
+    description: >
+      Summarizes sales, margin, and order count across customer and supplier regions.
+    columns:
+      - name: customer_region
+        data_tests: [not_null]
+      - name: supplier_region
+        data_tests: [not_null]
+      - name: total_revenue
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: " >= 0"
+      - name: avg_margin_pct
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "BETWEEN 0.00 AND 1.00"
+
+  - name: mart_time_series_sales
+    description: >
+      Daily aggregated sales and profitability metrics for time series analysis.
+    columns:
+      - name: order_date
+        data_tests: [unique, not_null]
+      - name: total_revenue
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  
+  - name: mart_product_performance
+    config:
+          tags: [mart, view, orders, customer, product, supplier]
+    description: >
+      Summarizes product-level performance including sales, quantity, and profitability.
+    columns:
+      - name: total_quantity_sold
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: " >= 0"
+
+  - name: mart_regional_sales_summary
+    config:
+          tags: [mart, view, orders, customer, product, supplier]
+    description: >
+      Aggregates revenue and margin by customer and supplier regions to analyze trade flow between regions.
+    columns:
+      - name: total_revenue
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+
+  - name: mart_supplier_performance
+    config:
+          tags: [mart, view, orders, customer, product, supplier]
+    description: >
+      Aggregates sales per supplier to measure total revenue, margin, and fulfillment volume.
+    columns:
+      - name: avg_margin
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+  
+ 

@@ -1,0 +1,30 @@
+
+
+
+
+exposures:
+  - name: executive_dashboard
+    label: Executive Dashboard
+    type: dashboard
+    maturity: low
+    url: https://695ba6c9.us2a.app.preset.io/superset/dashboard/p/YZ38axG0KyV/
+    description: Executive Dashboard about Snowflake TPCH-SF1 Data
+      
+
+    depends_on:
+      - ref('fct_sales')
+      - ref('mart_customer_lifetime_value')
+      - ref('mart_customer_region_distribution')
+      - ref('mart_product_performance')
+      - ref('mart_regional_performance')
+      - ref('mart_regional_sales_summary')
+      - ref('mart_supplier_performance')
+      - ref('mart_time_series_sales')
+      - ref('dim_customer_behavior')
+      
+      
+
+
+    owner:
+      name: Oleksandr Rachek
+      email: a.rachek.work@gmail.com

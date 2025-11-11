@@ -1,0 +1,303 @@
+version: 2
+
+sources:
+  - name: tpch
+    database: ECOM
+    schema: RAW
+    description: >
+      TPCH dataset used for ecommerce-style analytics. 
+      Contains customers, orders, line items, suppliers, parts, and geography.
+    tables:
+    #customer
+      - name: customer
+        config:
+          tags: [source, customer]
+        description: Customer master data
+        columns:
+          - name: C_CUSTKEY
+            description: Primary key of the customer
+            data_tests:
+              - unique
+              - not_null
+          - name: C_NAME
+            description: Customer name
+            data_tests:
+              - not_null
+          - name: C_NATIONKEY
+            description: Foreign key to NATION.N_NATIONKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'nation')
+                    field: N_NATIONKEY
+          - name: C_ACCTBAL
+            description: Account balance, should not be negative
+            data_tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: " >= 0"
+                    severity: warn
+          - name: C_MKTSEGMENT
+            description: Customer market segment
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ['AUTOMOBILE', 'BUILDING', 'FURNITURE', 'MACHINERY', 'HOUSEHOLD']     
+
+        #lineitem
+      - name: lineitem
+        config:
+          tags: [source, lineitem]
+        description: Line items for each order
+        columns:
+          - name: L_ORDERKEY
+            description: Foreign key to ORDERS.O_ORDERKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'orders')
+                    field: O_ORDERKEY
+          - name: L_PARTKEY
+            description: Foreign key to PART.P_PARTKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'part')
+                    field: P_PARTKEY
+          - name: L_SUPPKEY
+            description: Foreign key to SUPPLIER.S_SUPPKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'supplier')
+                    field: S_SUPPKEY
+          - name: L_LINENUMBER
+            description: Line item number within order
+            data_tests:
+              - not_null
+          - name: L_QUANTITY
+            description: Quantity ordered
+            data_tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "> 0.00"
+          - name: L_EXTENDEDPRICE
+            description: Extended price for the line item
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: " > 0"
+          - name: L_DISCOUNT
+            description: Discount applied
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "BETWEEN 0.00 AND 0.10"
+          - name: L_TAX
+            description: Tax rate
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "BETWEEN 0.00 AND 1.00"
+          - name: L_SHIPDATE
+            description: Shipment date
+            data_tests:
+              - not_null
+          - name: L_RECEIPTDATE
+            description: Receipt date (should be after ship date)
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: ">= L_SHIPDATE"
+        
+
+
+        #nation
+      - name: nation
+        config:
+          tags: [source, nation]
+        description: Country-level dimension
+        columns:
+          - name: N_NATIONKEY
+            description: Primary key of the nation
+            data_tests:
+              - unique
+              - not_null
+          - name: N_REGIONKEY
+            description: Foreign key to REGION.R_REGIONKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'region')
+                    field: R_REGIONKEY
+          - name: N_NAME
+            description: Nation name
+            data_tests:
+              - unique
+              - not_null
+
+      #orders
+      - name: orders
+        config:
+          tags: [source, orders]
+        description: Orders placed by customers
+        columns:
+          - name: O_ORDERKEY
+            description: Primary key of the order
+            data_tests:
+              - unique
+              - not_null
+          - name: O_CUSTKEY
+            description: Foreign key to CUSTOMER.C_CUSTKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'customer')
+                    field: C_CUSTKEY
+          - name: O_ORDERSTATUS
+            description: Status of the order (e.g., F = fulfilled, O = open)
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['F', 'O', 'P']
+          - name: O_TOTALPRICE
+            description: Total price of the order
+            data_tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "> 0.00"
+          - name: O_ORDERDATE
+            description: Date the order was placed
+            data_tests:
+              - not_null
+          - name: O_SHIPPRIORITY
+            description: Order priority
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "BETWEEN 0 AND 10"
+
+
+        #part
+      - name: part
+        config:
+          tags: [source, part]
+        description: Product catalog
+        columns:
+          - name: P_PARTKEY
+            description: Primary key of the part
+            data_tests:
+              - unique
+              - not_null
+          - name: P_NAME
+            description: Name of the part
+            data_tests:
+              - not_null
+          - name: P_MFGR
+            description: Manufacturer
+            data_tests:
+              - not_null
+          - name: P_TYPE
+            description: Type/category of the product
+            data_tests:
+              - not_null
+          - name: P_RETAILPRICE
+            description: Retail price of the part
+            data_tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: " > 0.00"
+
+
+      #partsupp
+      - name: partsupp
+        config:
+          tags: [source, partsupp]
+        description: Relationship between parts and suppliers
+        columns:
+          - name: PS_PARTKEY
+            description: Foreign key to PART.P_PARTKEY
+            data_tests:
+              - relationships:
+                  arguments:
+                    to: source('raw', 'part')
+                    field: P_PARTKEY
+          - name: PS_SUPPKEY
+            description: Foreign key to SUPPLIER.S_SUPPKEY
+            data_tests:
+              - relationships:
+                  arguments:
+                    to: source('raw', 'supplier')
+                    field: S_SUPPKEY
+          - name: PS_AVAILQTY
+            description: Available quantity
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: ">= 0"
+          - name: PS_SUPPLYCOST
+            description: Supply cost
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: " > 0"
+
+        #region
+      - name: region
+        config:
+          tags: [source, region]
+        description: Regional dimension
+        columns:
+          - name: R_REGIONKEY
+            description: Primary key of the region
+            data_tests:
+              - unique
+              - not_null
+          - name: R_NAME
+            description: Name of the region
+            data_tests:
+              - unique
+              - not_null
+
+            # supplier
+      - name: supplier
+        config:
+          tags: [source, supplier]
+        description: Supplier master data
+        columns:
+          - name: S_SUPPKEY
+            description: Primary key of the supplier
+            data_tests:
+              - unique
+              - not_null
+          - name: S_NATIONKEY
+            description: Foreign key to NATION.N_NATIONKEY
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'nation')
+                    field: N_NATIONKEY
+          - name: S_ACCTBAL
+            description: Account balance
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: " >= 0"
+                    severity: warn
+
+
+
+
+      
